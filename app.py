@@ -1,35 +1,30 @@
+
 # ── Language display names → backend keys
 LANG_OPTIONS = {
-    "English"                    : "English",
-    "Hindi (हिंदी)"              : "Hindi",
-    "English + Hindi"            : "Both",
-    "Marathi (मराठी)"            : "Marathi",
-    "Gujarati (ગુજરાતી)"         : "Gujarati",
-    "Bengali (বাংলা)"            : "Bengali",
-    "Tamil (தமிழ்)"              : "Tamil",
-    "Telugu (తెలుగు)"            : "Telugu",
-    "Kannada (ಕನ್ನಡ)"           : "Kannada",
-    "Malayalam (മലയാളം)"        : "Malayalam",
+    "English"                 : "English",
+    "Hindi (हिंदी)"           : "Hindi",
+    "English + Hindi"         : "Both",
+    "Marathi (मराठी)"         : "Marathi",
+    "Gujarati (ગુજરાતી)"      : "Gujarati",
+    "Bengali (বাংলা)"         : "Bengali",
+    "Tamil (தமிழ்)"           : "Tamil",
+    "Telugu (తెలుగు)"         : "Telugu",
+    "Kannada (ಕನ್ನಡ)"        : "Kannada",
+    "Malayalam (മലയാളം)"     : "Malayalam",
 }
 
-import os
-import html
+import os, html
 import streamlit as st
 from dotenv import load_dotenv
-from utils.analyzer import (
-    extract_text_from_pdf, extract_text_from_txt,
-    segment_into_clauses, analyze_contract,
-)
+from utils.analyzer import extract_text_from_pdf, extract_text_from_txt, segment_into_clauses, analyze_contract
 from utils.report_generator import generate_pdf_report, final_recommendation
 
-# ── API Key (works both locally via .env AND on Streamlit Cloud via secrets)
 load_dotenv()
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except Exception:
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-# ── Sample contract for demo/testing
 SAMPLE_CONTRACT = """
 SERVICE AGREEMENT
 
@@ -70,411 +65,403 @@ The Service Provider shall be paid Rs. 50,000 per month for services rendered.
 Payment is non-refundable under all circumstances.
 """
 
-# ══════════════════════════════════════════════════════════
-st.set_page_config(
-    page_title="AI Contract Risk Analyzer",
-    page_icon="⚖️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="AI Contract Risk Analyzer", page_icon="⚖️", layout="wide", initial_sidebar_state="expanded")
 
-# ══════════════════════════════════════════════════════════
-#  PREMIUM CSS — Clean Legal-Tech Dark Theme
-# ══════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
+#  PREMIUM CSS — Legal-tech SaaS dark theme
+#  Colors: #E63939 High Risk | #F57C00 Warning | #2E7D32 Safe
+#  Background: #0F1117 | Cards: #1E222B
+# ════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-*, *::before, *::after { box-sizing: border-box; }
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif !important;
-    background-color: #0B0D17 !important;
-    color: #E2E8F6 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    background-color: #0F1117 !important;
+    color: #E8EAF0 !important;
+    -webkit-font-smoothing: antialiased;
 }
 #MainMenu, footer, header { visibility: hidden; }
-.main .block-container { padding: 1.5rem 2.5rem 3rem !important; max-width: 1280px !important; }
+.main .block-container { padding: 2rem 2.5rem 4rem !important; max-width: 1200px !important; }
 
-/* ── HERO ── */
+/* ── HERO HEADER ── */
 .hero {
-    background: linear-gradient(135deg, #111829 0%, #0B0D17 55%, #180A2E 100%);
-    border: 1px solid #2A3560;
-    border-radius: 20px;
-    padding: 3rem 2rem 2.5rem;
-    text-align: center;
-    margin-bottom: 2rem;
+    background: linear-gradient(160deg, #161A24 0%, #0F1117 60%, #1A0F24 100%);
+    border: 1px solid #252A35;
+    border-top: 3px solid #E63939;
+    border-radius: 12px;
+    padding: 2.8rem 2.4rem 2.4rem;
+    margin-bottom: 1.8rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 0 60px rgba(99,102,241,0.08);
-}
-.hero::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    background: linear-gradient(90deg, #6366F1, #A855F7, #06B6D4, #10B981);
 }
 .hero::after {
     content: '';
-    position: absolute; top: -60px; right: -60px;
-    width: 280px; height: 280px;
-    background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+    position: absolute; right: -40px; top: -40px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(230,57,57,0.06) 0%, transparent 70%);
     border-radius: 50%;
     pointer-events: none;
 }
-.hero-badge {
-    display: inline-block;
-    background: rgba(99,102,241,0.15);
-    border: 1px solid rgba(99,102,241,0.4);
-    color: #A5B4FC;
-    font-size: 0.7rem; font-weight: 700;
-    letter-spacing: 2px; text-transform: uppercase;
-    padding: 5px 16px; border-radius: 20px; margin-bottom: 1rem;
+.hero-eyebrow {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 2.5px;
+    text-transform: uppercase; color: #E63939;
+    margin-bottom: 0.75rem;
 }
 .hero-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 3rem; font-weight: 700; letter-spacing: -1.5px;
-    background: linear-gradient(135deg, #FFFFFF 0%, #C7D2FE 50%, #A5B4FC 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text; margin-bottom: 0.7rem; line-height: 1.1;
+    font-size: 2.6rem; font-weight: 800; letter-spacing: -1px;
+    color: #F1F3F9; line-height: 1.15; margin-bottom: 0.6rem;
 }
-.hero-sub { font-size: 1rem; color: #6B7DB3; max-width: 540px; margin: 0 auto; }
+.hero-title span { color: #E63939; }
+.hero-sub { font-size: 1rem; color: #6B7280; font-weight: 400; max-width: 500px; }
 
-/* ── PRIVACY BAR ── */
-.privacy-bar {
-    background: rgba(6,182,212,0.07);
-    border: 1px solid rgba(6,182,212,0.22);
-    border-radius: 10px; padding: 0.6rem 1.2rem;
-    font-size: 0.78rem; color: #67E8F9; text-align: center; margin-bottom: 1.5rem;
+/* ── PRIVACY NOTICE ── */
+.privacy-notice {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: rgba(46,125,50,0.06); border: 1px solid rgba(46,125,50,0.2);
+    border-radius: 8px; padding: 0.6rem 1rem;
+    font-size: 0.78rem; color: #66BB6A; margin-bottom: 1.5rem;
 }
 
-/* ── SECTION LABELS ── */
-.sec-label {
-    font-size: 0.68rem; font-weight: 700; letter-spacing: 2px;
-    text-transform: uppercase; color: #818CF8;
-    margin: 1.8rem 0 0.7rem;
+/* ── SECTION HEADING ── */
+.section-heading {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #4B5563;
+    margin: 2rem 0 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #1E222B;
 }
 
-/* ── METRICS GRID ── */
-.metrics-grid {
+/* ── DASHBOARD GRID ── */
+.dash-grid {
     display: grid; grid-template-columns: repeat(4, 1fr);
     gap: 1rem; margin-bottom: 1.5rem;
 }
-.metric-box {
-    border-radius: 16px; padding: 1.3rem 1rem;
-    text-align: center; position: relative; overflow: hidden;
-    transition: transform 0.2s;
+.dash-card {
+    background: #1E222B; border-radius: 10px;
+    padding: 1.4rem 1.2rem; text-align: center;
+    border: 1px solid #252A35;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative; overflow: hidden;
 }
-.metric-box:hover { transform: translateY(-2px); }
-.m-total { background: linear-gradient(135deg,#1E2560,#111829); border: 1px solid #2A3580; }
-.m-safe  { background: linear-gradient(135deg,#052E16,#0B1B10); border: 1px solid #166534; }
-.m-warn  { background: linear-gradient(135deg,#451A03,#1C0F02); border: 1px solid #92400E; }
-.m-high  { background: linear-gradient(135deg,#450A0A,#1C0505); border: 1px solid #991B1B; }
-.metric-val {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 2.6rem; font-weight: 700; line-height: 1; margin-bottom: 0.3rem;
+.dash-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+.dash-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
 }
-.m-total .metric-val { color: #818CF8; }
-.m-safe  .metric-val { color: #4ADE80; }
-.m-warn  .metric-val { color: #FCD34D; }
-.m-high  .metric-val { color: #F87171; }
-.metric-lbl { font-size: 0.72rem; color: #94A3B8; font-weight: 500; letter-spacing: 0.5px; }
+.dc-total::before { background: #3B82F6; }
+.dc-safe::before  { background: #2E7D32; }
+.dc-warn::before  { background: #F57C00; }
+.dc-high::before  { background: #E63939; }
+.dash-num {
+    font-size: 2.8rem; font-weight: 800; line-height: 1; margin-bottom: 0.25rem;
+}
+.dc-total .dash-num { color: #60A5FA; }
+.dc-safe  .dash-num { color: #4CAF50; }
+.dc-warn  .dash-num { color: #FF9800; }
+.dc-high  .dash-num { color: #EF5350; }
+.dash-label { font-size: 0.7rem; color: #6B7280; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
 
 /* ── RECOMMENDATION BANNER ── */
-.rec-banner {
-    border-radius: 14px; padding: 1.3rem 1.8rem;
-    margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;
+.rec-card {
+    border-radius: 10px; padding: 1.4rem 1.6rem;
+    display: flex; align-items: center; gap: 1.2rem;
+    margin-bottom: 2rem;
 }
-.rec-icon { font-size: 2rem; }
-.rec-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem; }
-.rec-desc  { font-size: 0.85rem; opacity: 0.8; }
-.rec-safe    { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.3); }
-.rec-warning { background: rgba(252,211,77,0.07); border: 1px solid rgba(252,211,77,0.3); }
-.rec-danger  { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.3); }
-.rec-safe    .rec-title { color: #4ADE80; }
-.rec-warning .rec-title { color: #FCD34D; }
-.rec-danger  .rec-title { color: #F87171; }
+.rec-icon-wrap { font-size: 2.2rem; flex-shrink: 0; }
+.rec-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem; }
+.rec-detail { font-size: 0.85rem; opacity: 0.78; }
+.rec-safe    { background: rgba(46,125,50,0.1);  border: 1px solid rgba(46,125,50,0.35);  }
+.rec-warn    { background: rgba(245,124,0,0.1);  border: 1px solid rgba(245,124,0,0.35);  }
+.rec-danger  { background: rgba(230,57,57,0.1);  border: 1px solid rgba(230,57,57,0.35);  }
+.rec-safe   .rec-label { color: #4CAF50; }
+.rec-warn   .rec-label { color: #FF9800; }
+.rec-danger .rec-label { color: #EF5350; }
 
-/* ── CLAUSE CARDS ── */
+/* ── CLAUSE CARD ── */
 .clause-card {
-    background: #111828;
-    border: 1px solid #1E2A45;
-    border-radius: 16px; padding: 1.8rem 2rem;
-    margin-bottom: 1.5rem; position: relative; overflow: hidden;
-    transition: border-color 0.25s, box-shadow 0.25s;
+    background: #1E222B;
+    border: 1px solid #252A35;
+    border-left: 4px solid;
+    border-radius: 10px;
+    padding: 1.8rem 2rem;
+    margin-bottom: 1.4rem;
+    position: relative;
+    transition: box-shadow 0.2s;
 }
-.clause-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-.clause-card::before {
-    content: '';
-    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-    border-radius: 4px 0 0 4px;
-}
-.card-HIGH    { border-color: rgba(248,113,113,0.35); }
-.card-HIGH::before    { background: linear-gradient(180deg,#EF4444,#F87171); }
-.card-WARNING { border-color: rgba(252,211,77,0.35); }
-.card-WARNING::before { background: linear-gradient(180deg,#F59E0B,#FCD34D); }
-.card-SAFE    { border-color: rgba(74,222,128,0.3); }
-.card-SAFE::before    { background: linear-gradient(180deg,#10B981,#4ADE80); }
+.clause-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.45); }
+.c-high    { border-left-color: #E63939; }
+.c-warning { border-left-color: #F57C00; }
+.c-safe    { border-left-color: #2E7D32; }
 
-.card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-.card-num { font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; color: #4B5E8A; text-transform: uppercase; }
-.risk-pill { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px; padding: 4px 14px; border-radius: 20px; text-transform: uppercase; }
-.pill-HIGH    { background: rgba(239,68,68,0.18);  color: #FCA5A5; border: 1px solid rgba(239,68,68,0.5); }
-.pill-WARNING { background: rgba(245,158,11,0.18); color: #FDE68A; border: 1px solid rgba(245,158,11,0.5); }
-.pill-SAFE    { background: rgba(16,185,129,0.15); color: #6EE7B7; border: 1px solid rgba(16,185,129,0.4); }
+.clause-toprow {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 1rem;
+}
+.clause-num { font-size: 0.62rem; font-weight: 700; letter-spacing: 2px; color: #4B5563; text-transform: uppercase; }
+.risk-badge {
+    font-size: 0.66rem; font-weight: 700; padding: 4px 12px;
+    border-radius: 6px; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.badge-high    { background: rgba(230,57,57,0.15);  color: #EF5350; border: 1px solid rgba(230,57,57,0.4); }
+.badge-warning { background: rgba(245,124,0,0.15);  color: #FF9800; border: 1px solid rgba(245,124,0,0.4); }
+.badge-safe    { background: rgba(46,125,50,0.12);  color: #4CAF50; border: 1px solid rgba(46,125,50,0.35); }
 
-.clause-quote {
-    font-size: 0.83rem; color: #3D5273; line-height: 1.65;
-    border-left: 2px solid #1E2A45; padding-left: 1rem;
-    margin-bottom: 1.5rem; margin-top: 0.5rem; font-style: italic;
+.clause-text-quote {
+    font-size: 0.83rem; color: #4B5563; line-height: 1.6;
+    font-style: italic;
+    border-left: 2px solid #252A35; padding-left: 1rem;
+    margin-bottom: 1.5rem;
 }
-.detail-row { margin-bottom: 1.3rem; }
-.detail-key {
-    font-size: 0.63rem; font-weight: 700; letter-spacing: 1.5px;
-    text-transform: uppercase; color: #818CF8; margin-bottom: 0.4rem;
+
+.field-label {
+    font-size: 0.61rem; font-weight: 700; letter-spacing: 1.8px;
+    text-transform: uppercase; color: #6B7280; margin-bottom: 0.35rem;
 }
-.detail-val { font-size: 0.88rem; line-height: 1.75; color: #CBD5E1; white-space: pre-wrap; }
-.rewrite-box {
-    background: rgba(99,102,241,0.07);
-    border: 1px solid rgba(99,102,241,0.2);
-    border-radius: 10px; padding: 1.1rem 1.3rem; margin-top: 0.4rem;
-    font-size: 0.86rem; line-height: 1.75; color: #C7D2FE; white-space: pre-wrap;
+.field-value {
+    font-size: 0.9rem; line-height: 1.75; color: #D1D5DB;
+    margin-bottom: 1.3rem;
+    white-space: pre-wrap;
 }
+.rewrite-block {
+    background: rgba(59,130,246,0.05);
+    border: 1px solid rgba(59,130,246,0.18);
+    border-radius: 8px; padding: 1.1rem 1.3rem;
+    font-size: 0.88rem; line-height: 1.75;
+    color: #93C5FD; white-space: pre-wrap; margin-top: 0.3rem;
+}
+.field-divider { border: none; border-top: 1px solid #252A35; margin: 1rem 0; }
 
 /* ── SIDEBAR ── */
 [data-testid="stSidebar"] {
-    background: #080A12 !important;
-    border-right: 1px solid #141B30 !important;
+    background: #0A0C12 !important;
+    border-right: 1px solid #1E222B !important;
 }
-.sidebar-logo {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.15rem; font-weight: 700; color: #E2E8F6;
-    margin-bottom: 1.5rem; padding-bottom: 1rem;
-    border-bottom: 1px solid #141B30;
+.sb-logo {
+    font-size: 1rem; font-weight: 700; color: #F1F3F9;
+    padding-bottom: 1.2rem; margin-bottom: 1.2rem;
+    border-bottom: 1px solid #1E222B;
+    display: flex; align-items: center; gap: 0.5rem;
 }
-.sidebar-section {
-    font-size: 0.63rem; font-weight: 700; letter-spacing: 1.8px;
-    text-transform: uppercase; color: #818CF8; margin: 1.3rem 0 0.5rem;
-}
+.sb-dot { width: 8px; height: 8px; border-radius: 50%; background: #E63939; flex-shrink: 0; }
+.sb-section { font-size: 0.6rem; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #4B5563; margin: 1.5rem 0 0.5rem; }
 
 /* ── BUTTONS ── */
 .stButton > button {
-    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
-    color: white !important; border: none !important;
-    border-radius: 10px !important; font-weight: 600 !important;
-    font-size: 0.93rem !important; padding: 0.65rem 1.5rem !important;
-    width: 100% !important; letter-spacing: 0.3px !important;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.35) !important;
-    transition: opacity 0.2s, box-shadow 0.2s !important;
+    background: #E63939 !important; color: white !important;
+    border: none !important; border-radius: 8px !important;
+    font-weight: 600 !important; font-size: 0.9rem !important;
+    padding: 0.65rem 1.4rem !important; width: 100% !important;
+    letter-spacing: 0.3px !important;
+    box-shadow: 0 2px 12px rgba(230,57,57,0.3) !important;
+    transition: opacity 0.15s, box-shadow 0.15s !important;
 }
-.stButton > button:hover { opacity: 0.88 !important; box-shadow: 0 6px 28px rgba(99,102,241,0.5) !important; }
+.stButton > button:hover { opacity: 0.88 !important; box-shadow: 0 4px 20px rgba(230,57,57,0.45) !important; }
 .stDownloadButton > button {
-    background: rgba(16,185,129,0.1) !important; color: #4ADE80 !important;
-    border: 1px solid rgba(74,222,128,0.35) !important;
-    border-radius: 10px !important; font-weight: 600 !important; width: 100% !important;
+    background: rgba(46,125,50,0.1) !important; color: #4CAF50 !important;
+    border: 1px solid rgba(46,125,50,0.35) !important;
+    border-radius: 8px !important; font-weight: 600 !important; width: 100% !important;
 }
-.stProgress > div > div { background: linear-gradient(90deg,#6366F1,#A855F7) !important; }
-.stFileUploader { background: #111828 !important; border-radius: 12px !important; }
-.stTabs [data-baseweb="tab-list"] { background: #111828; border-radius: 10px; gap: 4px; padding: 4px; border: 1px solid #1E2A45; }
-.stTabs [data-baseweb="tab"] { border-radius: 8px !important; color: #4B5E8A !important; font-size: 0.83rem !important; font-weight: 500 !important; }
-.stTabs [aria-selected="true"] { background: #1E2A45 !important; color: #A5B4FC !important; }
-div[data-testid="stMarkdownContainer"] p { color: #CBD5E1; }
+
+/* ── STREAMLIT COMPONENTS ── */
+.stProgress > div > div { background: #E63939 !important; }
+.stFileUploader { background: #1E222B !important; border-radius: 8px !important; }
+.stTabs [data-baseweb="tab-list"] {
+    background: #1E222B; border-radius: 8px; gap: 2px; padding: 4px;
+    border: 1px solid #252A35;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 6px !important; color: #4B5563 !important;
+    font-size: 0.82rem !important; font-weight: 500 !important;
+    padding: 0.45rem 1rem !important;
+}
+.stTabs [aria-selected="true"] { background: #252A35 !important; color: #E8EAF0 !important; }
+div[data-testid="stMarkdownContainer"] p { color: #9CA3AF; }
+.stSelectbox > div > div { background: #1E222B !important; border-color: #252A35 !important; }
+[data-testid="stCheckbox"] { color: #9CA3AF; }
 </style>
 """, unsafe_allow_html=True)
 
 
-
-# ══════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════
 #  SIDEBAR
-# ══════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown('<div class="sidebar-logo">⚖️ Contract Analyzer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-logo"><div class="sb-dot"></div>Contract Analyzer</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-section">Your Role</div>', unsafe_allow_html=True)
-    user_role = st.selectbox(
-        "role",
-        [
-            "Student",
-            "Freelancer / Consultant",
-            "Tenant / House Renter",
-            "Employee / Job Seeker",
-            "Business Owner / Entrepreneur",
-            "Startup Founder",
-            "NRI / Overseas Indian",
-            "Senior Citizen",
-            "Other (General User)",
-        ],
-        label_visibility="collapsed"
-    )
+    st.markdown('<div class="sb-section">Your Role</div>', unsafe_allow_html=True)
+    user_role = st.selectbox("role", [
+        "Student", "Freelancer / Consultant", "Tenant / House Renter",
+        "Employee / Job Seeker", "Business Owner / Entrepreneur",
+        "Startup Founder", "NRI / Overseas Indian", "Senior Citizen",
+        "Other (General User)",
+    ], label_visibility="collapsed")
 
-    st.markdown('<div class="sidebar-section">Output Language</div>', unsafe_allow_html=True)
-    lang_display = st.selectbox(
-        "lang", list(LANG_OPTIONS.keys()), label_visibility="collapsed"
-    )
+    st.markdown('<div class="sb-section">Output Language</div>', unsafe_allow_html=True)
+    lang_display = st.selectbox("lang", list(LANG_OPTIONS.keys()), label_visibility="collapsed")
     lang_key = LANG_OPTIONS[lang_display]
 
-    st.markdown('<div class="sidebar-section">API Status</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-section">API Status</div>', unsafe_allow_html=True)
     if GROQ_API_KEY and GROQ_API_KEY != "your_groq_api_key_here":
         st.success("✅ API key loaded")
     else:
         st.error("❌ API key not found\nAdd GROQ_API_KEY to .env")
 
     st.markdown("---")
-    with st.expander("📖 How It Works"):
+    with st.expander("How It Works"):
         st.markdown("""
-1. Select your **role** + **language**
+1. Select **role** and **language**
 2. Upload a **PDF or TXT** contract
 3. Click **Analyze Contract**
-4. View results by risk tab
+4. View clause-by-clause risk results
 5. Download **PDF report**
 
 **Risk Levels:**
-🔴 HIGH RISK — Negotiate or reject  
-🟡 WARNING — Ask questions  
+🔴 HIGH RISK — Reject or negotiate
+🟡 WARNING — Review carefully
 🟢 SAFE — Generally fair
         """)
     st.markdown(
-        "<small style='color:#334155;'>AI-powered · Indian Contract Law<br>Built with ❤️ by college students</small>",
+        "<small style='color:#374151;'>AI-powered · Indian Contract Law<br>Built with ❤️ by college students</small>",
         unsafe_allow_html=True
     )
 
 
-# ══════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════
 #  HELPERS
-# ══════════════════════════════════════════════════════════
-def css_class(level: str) -> str:
-    return {"HIGH RISK": "HIGH", "WARNING": "WARNING", "SAFE": "SAFE"}.get(level, "SAFE")
+# ══════════════════════════════════════════════════
+def badge_css(level):
+    return {"HIGH RISK": "badge-high", "WARNING": "badge-warning", "SAFE": "badge-safe"}.get(level, "badge-safe")
 
-def pill_icon(level: str) -> str:
+def card_css(level):
+    return {"HIGH RISK": "c-high", "WARNING": "c-warning", "SAFE": "c-safe"}.get(level, "c-safe")
+
+def level_icon(level):
     return {"HIGH RISK": "❌", "WARNING": "⚠️", "SAFE": "✅"}.get(level, "•")
+
 
 def render_clause_card(r: dict):
     """
-    Render a single clause card.
-    CRITICAL: html.escape() is applied to ALL LLM-generated text
-    before inserting into HTML — this prevents raw tags from appearing.
+    Renders one clause analysis card.
+    html.escape() on ALL LLM text prevents raw HTML tags from appearing.
     """
-    level = r["risk_level"]
-    css   = css_class(level)
-    icon  = pill_icon(level)
-    num   = r["clause_number"]
+    lv   = r["risk_level"]
+    num  = r["clause_number"]
+    icon = level_icon(lv)
 
-    # ── Escape all dynamic content to prevent HTML injection / broken tags ──
-    raw_text    = html.escape(r["clause_text"][:300] + ("…" if len(r["clause_text"]) > 300 else ""))
-    explanation = html.escape(r["explanation"])
-    consequence = html.escape(r["consequence"])
-    action      = html.escape(r["action"])
-    rewrite     = html.escape(r["rewrite"])
+    raw   = html.escape(r["clause_text"][:280] + ("…" if len(r["clause_text"]) > 280 else ""))
+    expl  = html.escape(r["explanation"])
+    cons  = html.escape(r["consequence"])
+    act   = html.escape(r["action"])
+    rew   = html.escape(r["rewrite"])
 
     st.markdown(f"""
-<div class="clause-card card-{css}">
-  <div class="card-top">
-    <span class="card-num">Clause {num}</span>
-    <span class="risk-pill pill-{css}">{icon} {level}</span>
+<div class="clause-card {card_css(lv)}">
+  <div class="clause-toprow">
+    <span class="clause-num">Clause {num}</span>
+    <span class="risk-badge {badge_css(lv)}">{icon} {lv}</span>
   </div>
-  <div class="clause-quote">"{raw_text}"</div>
-  <div class="detail-row">
-    <div class="detail-key">📌 What It Means</div>
-    <div class="detail-val">{explanation}</div>
-  </div>
-  <div class="detail-row">
-    <div class="detail-key">⚡ Consequence</div>
-    <div class="detail-val">{consequence}</div>
-  </div>
-  <div class="detail-row">
-    <div class="detail-key">🔧 What To Do</div>
-    <div class="detail-val">{action}</div>
-  </div>
-  <div class="detail-key">✏️ Safer Version</div>
-  <div class="rewrite-box">{rewrite}</div>
+  <div class="clause-text-quote">"{raw}"</div>
+  <div class="field-label">📌 What It Means</div>
+  <div class="field-value">{expl}</div>
+  <hr class="field-divider"/>
+  <div class="field-label">⚡ Consequence</div>
+  <div class="field-value">{cons}</div>
+  <hr class="field-divider"/>
+  <div class="field-label">🔧 What To Do</div>
+  <div class="field-value">{act}</div>
+  <hr class="field-divider"/>
+  <div class="field-label">✏️ Safer Version</div>
+  <div class="rewrite-block">{rew}</div>
 </div>
 """, unsafe_allow_html=True)
 
 
-def render_dashboard(results: list[dict]):
+def render_dashboard(results: list):
     high  = sum(1 for r in results if r["risk_level"] == "HIGH RISK")
     warn  = sum(1 for r in results if r["risk_level"] == "WARNING")
     safe  = sum(1 for r in results if r["risk_level"] == "SAFE")
     total = len(results)
 
+    # ── Metric cards
     st.markdown(f"""
-<div class="metrics-grid">
-  <div class="metric-box m-total">
-    <div class="metric-val">{total}</div>
-    <div class="metric-lbl">Total Clauses</div>
+<div class="dash-grid">
+  <div class="dash-card dc-total">
+    <div class="dash-num">{total}</div>
+    <div class="dash-label">Total Clauses</div>
   </div>
-  <div class="metric-box m-safe">
-    <div class="metric-val">{safe}</div>
-    <div class="metric-lbl">✅ Safe</div>
+  <div class="dash-card dc-safe">
+    <div class="dash-num">{safe}</div>
+    <div class="dash-label">Safe</div>
   </div>
-  <div class="metric-box m-warn">
-    <div class="metric-val">{warn}</div>
-    <div class="metric-lbl">⚠ Warning</div>
+  <div class="dash-card dc-warn">
+    <div class="dash-num">{warn}</div>
+    <div class="dash-label">Warning</div>
   </div>
-  <div class="metric-box m-high">
-    <div class="metric-val">{high}</div>
-    <div class="metric-lbl">❌ High Risk</div>
+  <div class="dash-card dc-high">
+    <div class="dash-num">{high}</div>
+    <div class="dash-label">High Risk</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
+    # ── Recommendation
     rec_label, rec_detail = final_recommendation(results)
     if high == 0 and warn <= 2:
-        css_r, icon_r = "rec-safe", "✅"
+        r_css, r_icon = "rec-safe", "✅"
     elif high <= 2:
-        css_r, icon_r = "rec-warning", "⚠️"
+        r_css, r_icon = "rec-warn", "⚠️"
     else:
-        css_r, icon_r = "rec-danger", "❌"
-
-    # Escape recommendation text too
-    rec_label_esc  = html.escape(rec_label)
-    rec_detail_esc = html.escape(rec_detail)
+        r_css, r_icon = "rec-danger", "❌"
 
     st.markdown(f"""
-<div class="rec-banner {css_r}">
-  <div class="rec-icon">{icon_r}</div>
+<div class="rec-card {r_css}">
+  <div class="rec-icon-wrap">{r_icon}</div>
   <div>
-    <div class="rec-title">{rec_label_esc}</div>
-    <div class="rec-desc">{rec_detail_esc}</div>
+    <div class="rec-label">{html.escape(rec_label)}</div>
+    <div class="rec-detail">{html.escape(rec_detail)}</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════
 #  MAIN CONTENT
-# ══════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════
 st.markdown("""
 <div class="hero">
-  <div class="hero-badge">⚖️ Legal AI · Indian Contract Act 1872</div>
-  <div class="hero-title">AI Contract Risk Analyzer</div>
-  <div class="hero-sub">Upload any contract — get instant risk analysis in plain English or Hindi</div>
+  <div class="hero-eyebrow">⚖️ AI-Powered Legal Analysis</div>
+  <div class="hero-title">Contract <span>Risk</span> Analyzer</div>
+  <div class="hero-sub">Upload any contract and get an instant, clause-by-clause risk breakdown in plain language.</div>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div class="privacy-bar">
-  🔒 Privacy First — Your documents are processed in-memory only and are never stored or shared.
+<div class="privacy-notice">
+  🔒 <strong>Privacy First</strong> &nbsp;—&nbsp; Documents are processed in-memory only and never stored or shared.
 </div>
 """, unsafe_allow_html=True)
 
-# ── Upload ──
-st.markdown('<div class="sec-label">📄 Upload Contract</div>', unsafe_allow_html=True)
-uploaded_file = st.file_uploader(
-    "Upload contract", type=["pdf", "txt"], label_visibility="collapsed"
-)
-use_sample = st.checkbox("🧪 Use sample contract (for demo)", value=False)
+st.markdown('<div class="section-heading">Upload Contract</div>', unsafe_allow_html=True)
+uploaded_file = st.file_uploader("Upload", type=["pdf", "txt"], label_visibility="collapsed")
+use_sample    = st.checkbox("Use sample contract (demo mode)", value=False)
 
-st.markdown("")
-analyze_clicked = st.button("🔍 Analyze Contract", use_container_width=True)
+st.markdown("<br>", unsafe_allow_html=True)
+analyze_clicked = st.button("🔍  Analyze Contract", use_container_width=True)
 
-# ── Analysis ──
+# ── Analysis pipeline
 if analyze_clicked:
     if not GROQ_API_KEY or GROQ_API_KEY == "your_groq_api_key_here":
-        st.error("❌ Set your GROQ_API_KEY in .env before analyzing.")
+        st.error("❌ No API key. Add GROQ_API_KEY to your .env file.")
         st.stop()
     if not uploaded_file and not use_sample:
-        st.warning("⚠️ Upload a contract or check 'Use sample contract'.")
+        st.warning("Please upload a contract or enable demo mode.")
         st.stop()
 
-    with st.spinner("📄 Extracting text…"):
+    with st.spinner("Extracting text from document…"):
         if use_sample:
             contract_text = SAMPLE_CONTRACT
         elif uploaded_file.type == "application/pdf":
@@ -482,52 +469,49 @@ if analyze_clicked:
         else:
             contract_text = extract_text_from_txt(uploaded_file)
 
-    if not contract_text or len(contract_text.strip()) < 80:
-        st.error("❌ Could not extract enough text. Try a different file.")
+    if len(contract_text.strip()) < 80:
+        st.error("Could not extract enough text. Try a different file.")
         st.stop()
 
-    st.success(f"✅ Extracted {len(contract_text):,} characters.")
+    st.success(f"✅ Extracted {len(contract_text):,} characters")
 
-    with st.spinner("✂️ Segmenting into clauses…"):
+    with st.spinner("Segmenting into clauses…"):
         clauses = segment_into_clauses(contract_text)
 
-    st.info(f"📋 Found **{len(clauses)} clauses** — analyzing ({lang_key})…")
+    st.info(f"Found **{len(clauses)} clauses** — running AI analysis ({lang_key})…")
 
-    progress = st.progress(0, text="Sending to AI engine…")
+    bar = st.progress(0, text="Analyzing with AI…")
     try:
         results = analyze_contract(GROQ_API_KEY, user_role, clauses, lang_key)
-        progress.progress(100, text="Analysis complete!")
+        bar.progress(100, text="Analysis complete")
     except Exception as e:
-        st.error(f"❌ Analysis failed: {e}")
-        st.info("Check API key · Reduce file size · Try again.")
+        st.error(f"Analysis failed: {e}")
         st.stop()
 
     st.session_state["results"]   = results
     st.session_state["user_role"] = user_role
 
-# ── Display Results ──
+# ── Results display
 if "results" in st.session_state:
     results   = st.session_state["results"]
     user_role = st.session_state["user_role"]
 
     st.markdown("---")
-    st.markdown('<div class="sec-label">📊 Final Decision Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Risk Dashboard</div>', unsafe_allow_html=True)
     render_dashboard(results)
 
-    # PDF Download
-    st.markdown('<div class="sec-label">📥 Export</div>', unsafe_allow_html=True)
+    # PDF export
+    st.markdown('<div class="section-heading">Export Report</div>', unsafe_allow_html=True)
     with st.spinner("Generating PDF…"):
         pdf_bytes = generate_pdf_report(results, user_role)
     st.download_button(
-        "⬇️ Download Full PDF Report",
-        data=pdf_bytes,
-        file_name="contract_risk_analysis.pdf",
-        mime="application/pdf",
-        use_container_width=True,
+        "⬇️  Download Full PDF Report",
+        data=pdf_bytes, file_name="contract_risk_analysis.pdf",
+        mime="application/pdf", use_container_width=True,
     )
 
     st.markdown("---")
-    st.markdown('<div class="sec-label">📋 Clause-by-Clause Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Clause-by-Clause Analysis</div>', unsafe_allow_html=True)
 
     n_high = sum(1 for r in results if r["risk_level"] == "HIGH RISK")
     n_warn = sum(1 for r in results if r["risk_level"] == "WARNING")
@@ -549,14 +533,14 @@ if "results" in st.session_state:
         if hrs:
             for r in hrs: render_clause_card(r)
         else:
-            st.success("No HIGH RISK clauses found!")
+            st.success("No HIGH RISK clauses found.")
     with tab_warn:
         st.markdown("")
         wrs = [r for r in results if r["risk_level"] == "WARNING"]
         if wrs:
             for r in wrs: render_clause_card(r)
         else:
-            st.success("No WARNING clauses found!")
+            st.success("No WARNING clauses found.")
     with tab_safe:
         st.markdown("")
         srs = [r for r in results if r["risk_level"] == "SAFE"]
@@ -565,11 +549,11 @@ if "results" in st.session_state:
         else:
             st.info("No purely SAFE clauses.")
 
-# ── Footer ──
+# ── Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align:center;color:#1E293B;font-size:0.75rem;padding:0.5rem 0'>"
-    "⚖️ AI Contract Risk Analyzer · Free to use · Built with ❤️ by college students<br>"
+    "<div style='text-align:center;color:#374151;font-size:0.72rem;padding:0.5rem 0'>"
+    "⚖️ AI Contract Risk Analyzer &nbsp;·&nbsp; Free to use &nbsp;·&nbsp; Built with ❤️ by college students<br>"
     "<em>AI-generated analysis only — not legal advice. Consult a qualified lawyer before signing.</em>"
     "</div>",
     unsafe_allow_html=True
