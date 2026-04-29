@@ -196,8 +196,8 @@ html, body, [class*="css"] {
 .clause-card {
     background: #111828;
     border: 1px solid #1E2A45;
-    border-radius: 16px; padding: 1.5rem 1.6rem;
-    margin-bottom: 1.2rem; position: relative; overflow: hidden;
+    border-radius: 16px; padding: 1.8rem 2rem;
+    margin-bottom: 1.5rem; position: relative; overflow: hidden;
     transition: border-color 0.25s, box-shadow 0.25s;
 }
 .clause-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
@@ -221,21 +221,21 @@ html, body, [class*="css"] {
 .pill-SAFE    { background: rgba(16,185,129,0.15); color: #6EE7B7; border: 1px solid rgba(16,185,129,0.4); }
 
 .clause-quote {
-    font-size: 0.82rem; color: #3D5273; line-height: 1.6;
+    font-size: 0.83rem; color: #3D5273; line-height: 1.65;
     border-left: 2px solid #1E2A45; padding-left: 1rem;
-    margin-bottom: 1.2rem; font-style: italic;
+    margin-bottom: 1.5rem; margin-top: 0.5rem; font-style: italic;
 }
-.detail-row { margin-bottom: 1rem; }
+.detail-row { margin-bottom: 1.3rem; }
 .detail-key {
     font-size: 0.63rem; font-weight: 700; letter-spacing: 1.5px;
-    text-transform: uppercase; color: #818CF8; margin-bottom: 0.3rem;
+    text-transform: uppercase; color: #818CF8; margin-bottom: 0.4rem;
 }
-.detail-val { font-size: 0.88rem; line-height: 1.7; color: #CBD5E1; white-space: pre-wrap; }
+.detail-val { font-size: 0.88rem; line-height: 1.75; color: #CBD5E1; white-space: pre-wrap; }
 .rewrite-box {
     background: rgba(99,102,241,0.07);
     border: 1px solid rgba(99,102,241,0.2);
-    border-radius: 10px; padding: 1rem 1.2rem;
-    font-size: 0.86rem; line-height: 1.7; color: #C7D2FE; white-space: pre-wrap;
+    border-radius: 10px; padding: 1.1rem 1.3rem; margin-top: 0.4rem;
+    font-size: 0.86rem; line-height: 1.75; color: #C7D2FE; white-space: pre-wrap;
 }
 
 /* ── SIDEBAR ── */
@@ -540,16 +540,30 @@ if "results" in st.session_state:
         f"Safe  ({n_safe})",
     ])
     with tab_all:
-        for r in results: render_clause_card(r)
+        st.markdown("")
+        for r in results:
+            render_clause_card(r)
     with tab_high:
+        st.markdown("")
         hrs = [r for r in results if r["risk_level"] == "HIGH RISK"]
-        [render_clause_card(r) for r in hrs] if hrs else st.success("🎉 No HIGH RISK clauses!")
+        if hrs:
+            for r in hrs: render_clause_card(r)
+        else:
+            st.success("No HIGH RISK clauses found!")
     with tab_warn:
+        st.markdown("")
         wrs = [r for r in results if r["risk_level"] == "WARNING"]
-        [render_clause_card(r) for r in wrs] if wrs else st.success("🎉 No WARNING clauses!")
+        if wrs:
+            for r in wrs: render_clause_card(r)
+        else:
+            st.success("No WARNING clauses found!")
     with tab_safe:
+        st.markdown("")
         srs = [r for r in results if r["risk_level"] == "SAFE"]
-        [render_clause_card(r) for r in srs] if srs else st.info("No purely SAFE clauses.")
+        if srs:
+            for r in srs: render_clause_card(r)
+        else:
+            st.info("No purely SAFE clauses.")
 
 # ── Footer ──
 st.markdown("---")
