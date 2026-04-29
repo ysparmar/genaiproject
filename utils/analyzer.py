@@ -2,22 +2,21 @@
 # AI Contract Risk Analyzer — Clause Analysis Engine
 # utils/analyzer.py
 #
-# WHAT THIS FILE DOES (for viva/presentation):
+# WHAT THIS FILE DOES:
 #   1. Extracts text from PDF (PyMuPDF) or TXT files
 #   2. Splits contract into logical clauses (regex-based)
 #   3. Pre-screens each clause with keyword rules (fast, offline)
-#   4. Sends all clauses to Groq LLM for deep semantic analysis
-#   5. Parses the structured LLM response into Python dicts
-#   6. Supports English + Hindi dual-language output
+#   4. Sends all clauses to Google Gemini for deep analysis
+#   5. Parses the structured response into Python dicts
+#   6. Supports 10 Indian languages
 # ============================================================
 
 import re
 import fitz  # PyMuPDF — reads PDFs and extracts plain text
-from groq import Groq
+import google.generativeai as genai
 
 
-# ── High-risk legal keywords ───────────────────────────────
-# Instant red flag triggers before any LLM call
+# ── High-risk legal keywords (instant offline flag) ────────
 HIGH_RISK_KEYWORDS = [
     "indemnify", "indemnification", "unlimited liability", "waive all rights",
     "irrevocable", "perpetual license", "sole discretion", "unilateral",
@@ -98,20 +97,17 @@ def keyword_prescreen(clause: str) -> str:
     return "SAFE"
 
 
-def build_llm_prompt(user_role: str, clauses: list[str], language: str) -> str:
-    """
-    Build the structured prompt for the Groq LLM.
-    Supports English-only or English+Hindi output.
-    """
+def build_prompt(user_role: str, clauses: list[str], language: str) -> str:
+    """Build the structured prompt for Gemini."""
     numbered_clauses = "\n\n".join(
         f"[CLAUSE {i+1}]\n{c}" for i, c in enumerate(clauses)
     )
 
-    # Map language key to natural instruction for the LLM
+    # Language instruction
     LANG_MAP = {
         "English":   "Provide all output in English only.",
         "Hindi":     "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Hindi (हिंदी) only. Use simple everyday Hindi.",
-        "Both":      "Provide output in both English and Hindi. Format: English first, then 'हिंदी:' followed by Hindi.",
+        "Both":      "Provide output in English first, then 'हिंदी:' followed by Hindi translation.",
         "Marathi":   "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Marathi (मराठी) only.",
         "Gujarati":  "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Gujarati (ગુજરાતી) only.",
         "Bengali":   "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Bengali (বাংলা) only.",
@@ -122,10 +118,10 @@ def build_llm_prompt(user_role: str, clauses: list[str], language: str) -> str:
     }
     lang_instruction = LANG_MAP.get(language, "Provide all output in English only.")
 
-    prompt = f"""User role: {user_role}
-Language instruction: {lang_instruction}
+    return f"""You are an expert Indian contract lawyer. User role: {user_role}.
+Language: {lang_instruction}
 
-You are an expert Indian contract lawyer. Analyze EACH clause strictly using this format:
+Analyze EACH clause below. Use this EXACT format for every clause:
 
 CLAUSE_START
 CLAUSE_NUMBER: <number>
@@ -133,29 +129,24 @@ RISK_LEVEL: <SAFE | WARNING | HIGH RISK>
 EXPLANATION: <1-2 sentence plain explanation>
 CONSEQUENCE: <financial estimate in rupees, legal risk, or practical scenario>
 ACTION: <what to change, delete, or ask the other party>
-REWRITE: <a fairer, balanced rewritten version>
+REWRITE: <fairer, balanced rewritten version>
 CLAUSE_END
 
-Rules:
-- NEVER use HTML tags in your response. Plain text only.
-- Never give actual legal advice. Only analysis and suggestions.
-- Base analysis on Indian Contract Act 1872.
-- Mention real rupee amounts where relevant (e.g. Rs. 50,000).
-- Adjust risk severity for role: {user_role}
-- Keep CONSEQUENCE and ACTION brief for SAFE clauses.
+CRITICAL RULES:
+- NEVER use HTML tags. Plain text only.
+- Never give actual legal advice — only analysis and suggestions.
+- Follow Indian Contract Act 1872.
+- Mention real rupee amounts where relevant.
+- Adjust severity for role: {user_role}
 
-Contract clauses to analyze:
+Contract clauses:
 
 {numbered_clauses}
 """
-    return prompt
 
 
-def parse_llm_response(response_text: str, clauses: list[str], prescreens: list[str]) -> list[dict]:
-    """
-    Parse the structured LLM output into a list of Python dicts.
-    Gracefully falls back to pre-screen risk if LLM block is missing.
-    """
+def parse_response(response_text: str, clauses: list[str], prescreens: list[str]) -> list[dict]:
+    """Parse the structured Gemini output into a list of Python dicts."""
     blocks = re.split(r'CLAUSE_START', response_text)
     blocks = [b for b in blocks if 'CLAUSE_NUMBER' in b]
 
@@ -168,10 +159,8 @@ def parse_llm_response(response_text: str, clauses: list[str], prescreens: list[
             con_match  = re.search(r'CONSEQUENCE:\s*(.+?)(?=ACTION:|$)', block, re.DOTALL)
             act_match  = re.search(r'ACTION:\s*(.+?)(?=REWRITE:|$)', block, re.DOTALL)
             rew_match  = re.search(r'REWRITE:\s*(.+?)(?=CLAUSE_END|$)', block, re.DOTALL)
-
             if not num_match:
                 continue
-
             num = int(num_match.group(1))
             parsed_map[num] = {
                 "risk_level":  risk_match.group(1).strip() if risk_match else None,
@@ -195,50 +184,43 @@ def parse_llm_response(response_text: str, clauses: list[str], prescreens: list[
             "action":        parsed.get("action", "—"),
             "rewrite":       parsed.get("rewrite", clause),
         })
-
     return results
 
 
 def analyze_contract(api_key: str, user_role: str, clauses: list[str], language: str = "English") -> list[dict]:
     """
-    Main function: pre-screen → build prompt → call Groq → parse → return results.
+    Main function: pre-screen → build prompt → call Gemini → parse → return.
 
-    Args:
-        api_key   : Groq API key
-        user_role : Selected user role (Student / Freelancer / Tenant / Employee)
-        clauses   : List of contract clauses
-        language  : Output language — "English", "Hindi", or "Both"
-
-    Returns:
-        List of dicts with clause analysis data
+    Uses gemini-2.0-flash (fast, free tier available at aistudio.google.com)
     """
     # Step 1: fast keyword pre-screen (no API call)
     prescreens = [keyword_prescreen(c) for c in clauses]
 
-    # Step 2: build prompt with language preference
-    prompt = build_llm_prompt(user_role, clauses, language)
+    # Step 2: build prompt
+    prompt = build_prompt(user_role, clauses, language)
 
-    # Step 3: call Groq (LLaMA-3.3-70b)
-    client = Groq(api_key=api_key)
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an expert Indian contract lawyer who explains things in simple, "
-                    "clear, practical language. Follow Indian Contract Act 1872. "
-                    "Be honest and helpful. Never give actual legal advice. "
-                    "CRITICAL: Never use HTML tags in your output. Plain text only."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-        max_tokens=8000,
+    # Step 3: call Gemini API
+    genai.configure(api_key=api_key)
+
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=(
+            "You are an expert Indian contract lawyer who explains things in simple, "
+            "clear, practical language. Follow Indian Contract Act 1872. "
+            "Be honest and helpful. Never give actual legal advice — only analysis and suggestions. "
+            "CRITICAL: Never use HTML tags in your output. Plain text only."
+        ),
     )
 
-    raw_output = response.choices[0].message.content
+    response = model.generate_content(
+        prompt,
+        generation_config=genai.GenerationConfig(
+            temperature=0.3,        # low = more consistent structured output
+            max_output_tokens=8000,
+        ),
+    )
+
+    raw_output = response.text
 
     # Step 4: parse and return
-    return parse_llm_response(raw_output, clauses, prescreens)
+    return parse_response(raw_output, clauses, prescreens)
