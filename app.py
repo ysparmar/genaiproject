@@ -21,9 +21,9 @@ from utils.report_generator import generate_pdf_report, final_recommendation
 
 load_dotenv()
 try:
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except Exception:
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 SAMPLE_CONTRACT = """
 SERVICE AGREEMENT
@@ -305,10 +305,10 @@ with st.sidebar:
     lang_key = LANG_OPTIONS[lang_display]
 
     st.markdown('<div class="sb-section">API Status</div>', unsafe_allow_html=True)
-    if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
+    if GROQ_API_KEY and GROQ_API_KEY != "your_groq_api_key_here":
         st.success("✅ API key loaded")
     else:
-        st.error("❌ API key not found\nAdd GEMINI_API_KEY to .env")
+        st.error("❌ API key not found\nAdd GROQ_API_KEY to .env")
 
     st.markdown("---")
     with st.expander("How It Works"):
@@ -454,8 +454,8 @@ analyze_clicked = st.button("🔍  Analyze Contract", use_container_width=True)
 
 # ── Analysis pipeline
 if analyze_clicked:
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
-        st.error("❌ No API key. Add GEMINI_API_KEY to your .env file.")
+    if not GROQ_API_KEY or GROQ_API_KEY == "your_groq_api_key_here":
+        st.error("❌ No API key. Add GROQ_API_KEY to your .env file.")
         st.stop()
     if not uploaded_file and not use_sample:
         st.warning("Please upload a contract or enable demo mode.")
@@ -482,7 +482,7 @@ if analyze_clicked:
 
     bar = st.progress(0, text="Analyzing with AI…")
     try:
-        results = analyze_contract(GEMINI_API_KEY, user_role, clauses, lang_key)
+        results = analyze_contract(GROQ_API_KEY, user_role, clauses, lang_key)
         bar.progress(100, text="Analysis complete")
     except Exception as e:
         st.error(f"Analysis failed: {e}")
