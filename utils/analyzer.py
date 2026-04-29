@@ -245,7 +245,7 @@ def analyze_contract(api_key: str, user_role: str, clauses: list[str]) -> list[d
     # Step 3: call Groq
     client = Groq(api_key=api_key)
     chat_response = client.chat.completions.create(
-        model="llama-3.1-70b-versatile",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
