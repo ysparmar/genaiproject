@@ -1,3 +1,17 @@
+# ── Language display names → backend keys
+LANG_OPTIONS = {
+    "English"                    : "English",
+    "Hindi (हिंदी)"              : "Hindi",
+    "English + Hindi"            : "Both",
+    "Marathi (मराठी)"            : "Marathi",
+    "Gujarati (ગુજરાતી)"         : "Gujarati",
+    "Bengali (বাংলা)"            : "Bengali",
+    "Tamil (தமிழ்)"              : "Tamil",
+    "Telugu (తెలుగు)"            : "Telugu",
+    "Kannada (ಕನ್ನಡ)"           : "Kannada",
+    "Malayalam (മലയാളം)"        : "Malayalam",
+}
+
 import os
 import html
 import streamlit as st
@@ -352,24 +366,32 @@ with st.sidebar:
 
     st.markdown('<div class="sidebar-section">Your Role</div>', unsafe_allow_html=True)
     user_role = st.selectbox(
-        "role", ["Student", "Freelancer", "Tenant", "Employee / Job Seeker"],
+        "role",
+        [
+            "Student",
+            "Freelancer / Consultant",
+            "Tenant / House Renter",
+            "Employee / Job Seeker",
+            "Business Owner / Entrepreneur",
+            "Startup Founder",
+            "NRI / Overseas Indian",
+            "Senior Citizen",
+            "Other (General User)",
+        ],
         label_visibility="collapsed"
     )
 
     st.markdown('<div class="sidebar-section">Output Language</div>', unsafe_allow_html=True)
-    language = st.radio(
-        "lang", ["English", "Hindi", "Both (English + Hindi)"],
-        label_visibility="collapsed"
+    lang_display = st.selectbox(
+        "lang", list(LANG_OPTIONS.keys()), label_visibility="collapsed"
     )
-    # Normalize "Both (English + Hindi)" to "Both" for the backend
-    lang_key = "Both" if "Both" in language else language
+    lang_key = LANG_OPTIONS[lang_display]
 
-    st.markdown('<div class="sidebar-section">API Key</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">API Status</div>', unsafe_allow_html=True)
     if GROQ_API_KEY and GROQ_API_KEY != "your_groq_api_key_here":
-        st.success("✅ Groq key loaded")
+        st.success("✅ API key loaded")
     else:
-        st.error("❌ No API key found\nAdd GROQ_API_KEY to .env")
-        st.caption("Get free key → [console.groq.com](https://console.groq.com)")
+        st.error("❌ API key not found\nAdd GROQ_API_KEY to .env")
 
     st.markdown("---")
     with st.expander("📖 How It Works"):
@@ -386,7 +408,7 @@ with st.sidebar:
 🟢 SAFE — Generally fair
         """)
     st.markdown(
-        "<small style='color:#334155;'>Groq LLaMA-3.3-70b<br>Indian Contract Act 1872</small>",
+        "<small style='color:#334155;'>AI-powered · Indian Contract Law<br>Built with ❤️ by college students</small>",
         unsafe_allow_html=True
     )
 
@@ -546,9 +568,9 @@ if analyze_clicked:
     with st.spinner("✂️ Segmenting into clauses…"):
         clauses = segment_into_clauses(contract_text)
 
-    st.info(f"📋 Found **{len(clauses)} clauses** — analyzing with Groq AI ({lang_key})…")
+    st.info(f"📋 Found **{len(clauses)} clauses** — analyzing ({lang_key})…")
 
-    progress = st.progress(0, text="Sending to LLaMA-3.3-70b…")
+    progress = st.progress(0, text="Sending to AI engine…")
     try:
         results = analyze_contract(GROQ_API_KEY, user_role, clauses, lang_key)
         progress.progress(100, text="Analysis complete!")
@@ -610,7 +632,7 @@ if "results" in st.session_state:
 st.markdown("---")
 st.markdown(
     "<div style='text-align:center;color:#1E293B;font-size:0.75rem;padding:0.5rem 0'>"
-    "⚖️ AI Contract Risk Analyzer · Groq LLaMA-3.3-70b · Indian Contract Act 1872<br>"
+    "⚖️ AI Contract Risk Analyzer · Free to use · Built with ❤️ by college students<br>"
     "<em>AI-generated analysis only — not legal advice. Consult a qualified lawyer before signing.</em>"
     "</div>",
     unsafe_allow_html=True

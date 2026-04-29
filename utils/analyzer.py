@@ -107,19 +107,20 @@ def build_llm_prompt(user_role: str, clauses: list[str], language: str) -> str:
         f"[CLAUSE {i+1}]\n{c}" for i, c in enumerate(clauses)
     )
 
-    # Language instruction injected into prompt
-    if language == "Hindi":
-        lang_instruction = (
-            "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in HINDI only. "
-            "Use simple Hindi that a common person can understand."
-        )
-    elif language == "Both":
-        lang_instruction = (
-            "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in BOTH English and Hindi. "
-            "Format: first English, then a line break, then 'हिंदी:' followed by Hindi translation."
-        )
-    else:
-        lang_instruction = "Provide all output in English only."
+    # Map language key to natural instruction for the LLM
+    LANG_MAP = {
+        "English":   "Provide all output in English only.",
+        "Hindi":     "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Hindi (हिंदी) only. Use simple everyday Hindi.",
+        "Both":      "Provide output in both English and Hindi. Format: English first, then 'हिंदी:' followed by Hindi.",
+        "Marathi":   "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Marathi (मराठी) only.",
+        "Gujarati":  "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Gujarati (ગુજરાતી) only.",
+        "Bengali":   "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Bengali (বাংলা) only.",
+        "Tamil":     "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Tamil (தமிழ்) only.",
+        "Telugu":    "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Telugu (తెలుగు) only.",
+        "Kannada":   "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Kannada (ಕನ್ನಡ) only.",
+        "Malayalam": "Provide EXPLANATION, CONSEQUENCE, ACTION, and REWRITE in Malayalam (മലയാളം) only.",
+    }
+    lang_instruction = LANG_MAP.get(language, "Provide all output in English only.")
 
     prompt = f"""User role: {user_role}
 Language instruction: {lang_instruction}
