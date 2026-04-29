@@ -1,0 +1,46 @@
+# ============================================================
+# .gitignore for AI Contract Risk Analyzer
+# ============================================================
+
+# ⚠️ CRITICAL: Never commit .env — it contains your API key!
+.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Streamlit cache
+.streamlit/
+
+# Byte-compiled / optimized / DLL files
+*.so
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE files
+.idea/
+.vscode/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary uploaded files (if any)
+uploads/
+temp/
+
+# Generated reports (optional — remove if you want to track them)
+*.pdf
